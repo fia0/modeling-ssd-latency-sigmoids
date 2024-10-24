@@ -1,20 +1,19 @@
 #!/bin/env python
 
-from scipy.optimize import least_squares, curve_fit
+from scipy.optimize import curve_fit
 import pandas as pd
 import math
 import numpy
 import matplotlib.pyplot as plt
-import pynverse
 
 def sigmoid(x, alpha, beta, gamma):
-    return alpha / (1 + math.e**(beta * (x - gamma)))
+    return alpha / (1 + math.e**(beta * (math.log(x) - gamma)))
 
 def sigmoids(xs, alpha, beta, gamma):
     return numpy.array([sigmoid(x, alpha, beta, gamma) for x in xs])
 
-#def inverse_sigmoid(xs, alpha, beta, gamma):
-#    return numpy.array([(math.log(a/x - 1) + beta * gamma)/beta for x in xs])
+def double_sigmoids(xs, a0, b0, c0, a1, b1, c1):
+    return numpy.array([sigmoid(x, a0, b0, c0) for x in xs]) + numpy.array([sigmoid(x, a1, b1, c1) for x in xs])
 
 data = pd.read_csv("output.csv", skipinitialspace=True)
 data = data[['nsec', 'read_clat_ns_count', 'read_clat_ns_cumulative', 'read_clat_ns_percentile','write_clat_ns_count', 'write_clat_ns_cumulative', 'write_clat_ns_percentile',]]
@@ -22,15 +21,21 @@ data = data[['nsec', 'read_clat_ns_count', 'read_clat_ns_cumulative', 'read_clat
 def sigmoid_error(s):
     return data['read_clat_ns_cumulative'] - sigmoid(data['nsec'], *s)
 
-# TODO: Initial seeding is hand-tunded and might not work for all cases.
+def lower_bound():
+    return [0, -numpy.inf, math.log(data['nsec'].min())]
+
+def upper_bound():
+    return [data['read_clat_ns_count'].cumsum().max(), numpy.inf, math.log(data['nsec'].max())]
+
+# logistic regression over measured data
 res_curve, cov = curve_fit(
     sigmoids,
-    numpy.log(data['nsec'].to_numpy()),
+    data['nsec'].to_numpy(),
     data['read_clat_ns_cumulative'].to_numpy(),
     [0, 0, math.log(data['nsec'].min())],
     bounds = (
-        [0, -numpy.inf, math.log(data['nsec'].min())],
-        [data['read_clat_ns_count'].cumsum().max(), numpy.inf, math.log(data['nsec'].max())],
+        lower_bound(),
+        upper_bound(),
     ),
 )
 
@@ -38,30 +43,74 @@ res_curve, cov = curve_fit(
 #
 # let's get g(x) next
 
-# approx_res = sigmoids(numpy.log(data['nsec']), *res_curve)
-# lower_bound = approx_res[0]
-# upper_bound = approx_res[len(approx_res) - 1]
-# 
-# def normalized_sigmoid(x):
-#     return sigmoid(math.log(x), *res_curve) / (upper_bound - lower_bound)
-# 
-# # bounded_res = approx_res / (upper_bound - lower_bound)
-# 
-# inverse_normalized_sigmoid = pynverse.inversefunc(normalized_sigmoid)
+approx_res = sigmoids(data['nsec'], *res_curve)
+lower_bound = approx_res[0]
+upper_bound = approx_res[len(approx_res) - 1]
+
+def normalized_sigmoid(x):
+    return sigmoid(x, *res_curve) / (upper_bound - lower_bound)
+
+# bounded_res = approx_res / (upper_bound - lower_bound)
+
+# with pynverse
+#inverse_normalized_sigmoid = pynverse.inversefunc(normalized_sigmoid, domain=[data['nsec'].min(), data['nsec'].max()])
+
+def inverse_sigmoid(x, alpha, beta, gamma, delta, epsilon):
+    if x <= 0:
+        return 0
+    elif x >= 1.0:
+        return data['nsec'].max()
+    else:
+        if 0 > (x*gamma+delta) / (1-x+epsilon):
+            return numpy.nan
+        return (alpha * numpy.log((x*gamma+delta) / (1-x+epsilon)) + beta)
+
+def inverse_sigmoids(xs, alpha, beta, gamma, delta, epsilon):
+    return numpy.array([inverse_sigmoid(x, alpha, beta, gamma, delta, epsilon) for x in xs])
+
+inv_curve, _ = curve_fit(
+    inverse_sigmoids,
+    [normalized_sigmoid(x) for x in data['nsec']],
+    data['nsec'],
+    [0, 0, data['nsec'].min(), 1, 1],
+    bounds = (
+        [-numpy.inf,-numpy.inf,-numpy.inf,-numpy.inf,-numpy.inf],
+        [numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf],
+    )
+)
 
 # plot the function compared to the real data
-fig, axs = plt.subplots(1,3, figsize=(12,4))
-axs[0].scatter(data['nsec'], data['read_clat_ns_cumulative'], label="Reference")
-axs[0].plot(data['nsec'], sigmoid(numpy.log(data['nsec']), *res_curve), label="CF")
-axs[0].set_xlabel("Time [nsec]")
-axs[0].set_ylabel("Requests [#]")
-axs[0].set_title("Cumulative Number of Requests")
+fig, axs = plt.subplots(2,3, figsize=(12,10))
+axs[0][0].scatter(data['nsec'], data['read_clat_ns_cumulative'], label="Reference")
+axs[0][0].plot(data['nsec'], sigmoids(data['nsec'], *res_curve), label="CF")
+axs[0][0].set_xlabel("Time [nsec]")
+axs[0][0].set_ylabel("Requests [#]")
+axs[0][0].set_title("Cumulative\nNumber of Requests")
 
-#axs[1].plot(data['nsec'], [normalized_sigmoid(x) for x in data['nsec']])
-#axs[1].set_title("Normalized Cumulative Distribution")
-#
-#axs[2].plot(numpy.arange(0, 1, 0.01), [inverse_normalized_sigmoid(x) for x in numpy.arange(0, 1, 0.01)])
-#axs[2].set_title("Inverse of Normalized\n Cumulative Distribution")
+axs[0][1].plot(data['nsec'], [normalized_sigmoid(x) for x in data['nsec']])
+axs[0][1].set_title("Normalized\nCumulative Distribution")
+axs[0][1].set_xlabel("Time [nsec]")
+axs[0][1].set_ylabel("Percentiles")
+
+percentages =[normalized_sigmoid(x) for x in data['nsec']] 
+
+#axs[2].plot(percentages, [inverse_normalized_sigmoid(x) for x in percentages])
+#axs[2].scatter(
+#    percentages,
+#    data['nsec'],
+#)
+#axs[2].set_title("Inverse of Normalized\n Cumulative Distribution (pynverse)")
+
+axs[0][2].plot(percentages, [inverse_sigmoid(x, *inv_curve) for x in percentages])
+axs[0][2].scatter(
+    percentages,
+    data['nsec'],
+)
+axs[0][2].set_title("Inverse of Normalized\n Cumulative Distribution (CF)")
+axs[0][2].set_xlabel("Percentiles")
+axs[0][2].set_ylabel("Time [nsec]")
+
+axs[1][0].scatter(data['nsec'], data['read_clat_ns_cumulative'], label="Reference")
 
 fig.legend()
 fig.savefig("output.svg")
