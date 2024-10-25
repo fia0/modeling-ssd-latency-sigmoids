@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy
 import pandas as pd
 from scipy.optimize import curve_fit
+import sys
 
 """
 This scripts does:
@@ -30,6 +31,12 @@ The results is given as another csv with the following format:
 blocksize, rwratio, a, b, c, d, e
 """
 
+if len(sys.argv) < 2:
+    print("Usage:")
+    print(f"{sys.argv[0]} <PATH_TO_INPUT_CSV>")
+
+input = sys.argv[1]
+
 def sigmoid(x, alpha, beta, gamma):
     return alpha / (1 + math.e**(beta * (math.log(x) - gamma)))
 
@@ -39,7 +46,7 @@ def sigmoids(xs, alpha, beta, gamma):
 def double_sigmoids(xs, a0, b0, c0, a1, b1, c1):
     return numpy.array([sigmoid(x, a0, b0, c0) for x in xs]) + numpy.array([sigmoid(x, a1, b1, c1) for x in xs])
 
-data = pd.read_csv("input.csv", skipinitialspace=True)
+data = pd.read_csv(input, skipinitialspace=True)
 data = data[['nsec', 'read_clat_ns_count', 'read_clat_ns_cumulative', 'read_clat_ns_percentile','write_clat_ns_count', 'write_clat_ns_cumulative', 'write_clat_ns_percentile',]]
 
 def inverse_sigmoid(x, alpha, beta, gamma, delta, epsilon):
