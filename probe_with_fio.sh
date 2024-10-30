@@ -12,7 +12,7 @@ setup_fio() {
     sha256sum -c checksum.txt
     tar xzf ${FIO_ARCHIVE}
     rm ${FIO_ARCHIVE}
-    cd fio-fio-${FIO_RELEASE} && ./configure && make
+    cd fio-fio-${FIO_RELEASE} && ./configure && make -j $(nproc)
 }
 
 if [ ! -d "${FIO_DIR}" ]; then
