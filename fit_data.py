@@ -161,7 +161,6 @@ def single_sigmoid_approx(column):
     print(f"\t epsilon: {inv_curve[4]}")
     print()
 
-
 #double_res_curve, _ = curve_fit(
 #    double_sigmoids,
 #    data['nsec'].to_numpy(),
