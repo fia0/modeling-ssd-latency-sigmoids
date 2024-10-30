@@ -11,7 +11,7 @@ setup_fio() {
     wget ${FIO_URL}
     sha256sum -c checksum.txt
     tar xzf ${FIO_ARCHIVE}
-    ${RM} ${FIO_ARCHIVE}
+    rm ${FIO_ARCHIVE}
     cd fio-fio-${FIO_RELEASE} && ./configure && make
 }
 
