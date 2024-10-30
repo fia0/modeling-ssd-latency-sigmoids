@@ -32,3 +32,5 @@ fi
     --log_hist_msec=1 \
     --output=probe.json \
     --output-format='json+'
+
+"${FIO_DIR}/tools/fio_jsonplus_clat2csv probe.json probe"
