@@ -114,7 +114,7 @@ def single_sigmoid_approx(column):
         )
     )
     # plot the function compared to the real data
-    fig, axs = plt.subplots(1,3, figsize=(12,5))
+    fig, axs = plt.subplots(1,4, figsize=(16,5))
     axs[0].scatter(data['nsec'], data[column], label="Reference")
     axs[0].plot(data['nsec'], sigmoids(data['nsec'], *res_curve), label="CF")
     axs[0].set_xlabel("Time [nsec]")
@@ -137,7 +137,18 @@ def single_sigmoid_approx(column):
     axs[2].set_xlabel("Percentiles")
     axs[2].set_ylabel("Time [nsec]")
 
+    axs[3].plot(
+        percentages,
+        ([inverse_sigmoid(x, *inv_curve) for x in percentages] - data['nsec'])/data['nsec']*100,
+    )
+    axs[3].set_ylim((-2.5, 2.5))
+    axs[3].set_title("Error of INCD")
+    axs[3].set_xlabel("Percentiles")
+    axs[3].set_ylabel("Error [%]")
+
+
     fig.legend()
+    fig.tight_layout()
     fig.savefig(f"output_{column}.svg")
 
     with open(f"output_{column}.csv", 'w', encoding="utf-8") as file:
