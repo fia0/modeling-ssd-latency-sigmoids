@@ -121,10 +121,10 @@ def single_sigmoid_approx(column):
     axs[0].set_ylabel("Requests [#]")
     axs[0].set_title("Cumulative\nNumber of Requests")
 
-    axs[1].plot(data['nsec'], [normalized_sigmoid(x) for x in data['nsec']])
-    axs[1].set_title("Normalized\nCumulative Distribution")
+    axs[1].plot(data['nsec'], (data[column] - sigmoids(data['nsec'], *res_curve)) / data['nsec'] * 100 )
+    axs[1].set_title("Error of\nCumulative Distribution")
     axs[1].set_xlabel("Time [nsec]")
-    axs[1].set_ylabel("Percentiles")
+    axs[1].set_ylabel("Error [%]")
 
     percentages =[normalized_sigmoid(x) for x in data['nsec']] 
 
