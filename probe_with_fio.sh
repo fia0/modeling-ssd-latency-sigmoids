@@ -45,4 +45,4 @@ fi
     --output="$OUT_JSON" \
     --output-format='json+'
 
-"${FIO_DIR}/tools/fio_jsonplus_clat2csv" "$OUT_JSON" "$OUT"
+"${FIO_DIR}/tools/fio_jsonplus_clat2csv" "$OUT_JSON" "${OUT}.csv"
