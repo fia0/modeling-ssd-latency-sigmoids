@@ -9,24 +9,30 @@ import sys
 
 """
 This scripts does:
-    - Find an approximated function for IO latency count described by
-      output.csv
+    - Find an approximated function for IO latency count described by the input
     - Inverse a normalized version of this approximation to find the relation
       percentile -> latency with another approximation
+    - The output will be created next to the input prepended with "param"
 
 The input is a csv file created by fio accompanying
 `tools/fio_jsonplus_clat2csv` script.
 
+The name of the input is structured:
+
+    <name>_<blocksize in B>_<rw ratio>_<queue_depth>
+
 The inverse function is a single logit given with 5 constants which are
 determined in the script:
       
-h(x) = euler^c * (a / (x*gap) - 1)^(1/b)
+    h(x) = euler^c * (a / (x*gap - 1))^(1/b)
 
 The result of this function is the time of the given percentile in nanoseconds.
 
-The results is given as another csv with the following format:
+The results is given as another csv file with the following format:
 
-blocksize, rwratio, a, b, c, d, e
+    blocksize, rwratio, a, b, c, d, e
+
+
 """
 
 if len(sys.argv) < 2:
@@ -34,6 +40,10 @@ if len(sys.argv) < 2:
     print(f"{sys.argv[0]} <PATH_TO_INPUT_CSV>")
 
 input = sys.argv[1]
+
+block_size = input.split("_")[1]
+rw_ratio = input.split("_")[2]
+queue_depth = input.split("_")[3]
 
 def sigmoid(x, alpha, beta, gamma):
     return alpha / (1 + math.e**(beta * (math.log(x) - gamma)))
@@ -84,17 +94,6 @@ def single_sigmoid_approx(column):
         ),
     )
 
-    # we got f(x) now
-    #
-    # let's get g(x) next
-
-    approx_res = sigmoids(data['nsec'], *res_curve)
-    lower_bound = approx_res[0]
-    upper_bound = approx_res[len(approx_res) - 1]
-
-    def normalized_sigmoid(x):
-        return sigmoid(x, *res_curve) / (upper_bound - lower_bound)
-
     # plot the function compared to the real data
     fig, axs = plt.subplots(1,4, figsize=(16,5))
 
@@ -134,9 +133,8 @@ def single_sigmoid_approx(column):
     fig.tight_layout()
     fig.savefig(f"output_{column}.svg")
 
-    with open(f"output_{column}.csv", 'w', encoding="utf-8") as file:
-        file.write("blocksize,rwratio,gap,a,b,c\n")
-        file.write(f"131072,1.0,{gap}")
+    with open(f"param_{input}.csv", 'a', encoding="utf-8") as file:
+        file.write(f"{block_size},{column.split("_")[0]},{rw_ratio},{gap}")
         for x in res_curve:
             file.write(f",{x}")
         file.write("\n")
@@ -146,6 +144,10 @@ def single_sigmoid_approx(column):
     print(f"\t alpha: {res_curve[0]}")
     print(f"\t beta: {res_curve[1]}")
     print(f"\t gamma: {res_curve[2]}")
+
+
+with open(f"param_{input}.csv", 'w', encoding="utf-8") as file:
+        file.write("blocksize,op,rw,gap,a,b,c\n")
 
 single_sigmoid_approx("read_clat_ns_cumulative")
 single_sigmoid_approx("write_clat_ns_cumulative")
