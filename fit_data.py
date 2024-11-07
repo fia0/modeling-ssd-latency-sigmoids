@@ -20,9 +20,7 @@ The input is a csv file created by fio accompanying
 The inverse function is a single logit given with 5 constants which are
 determined in the script:
       
-       | 0                              | x <= 0
-h(x) = | a * log((x*c+d)/(1-x+e)) + b   | 0 < x < 1
-       | max latency                    | x >= 1
+h(x) = euler^c * (a / (x*gap) - 1)^(1/b)
 
 The result of this function is the time of the given percentile in nanoseconds.
 
@@ -49,18 +47,12 @@ def double_sigmoids(xs, a0, b0, c0, a1, b1, c1):
 data = pd.read_csv(input, skipinitialspace=True)
 data = data[['nsec', 'read_clat_ns_count', 'read_clat_ns_cumulative', 'read_clat_ns_percentile','write_clat_ns_count', 'write_clat_ns_cumulative', 'write_clat_ns_percentile',]]
 
-def inverse_sigmoid(x, alpha, beta, gamma, delta, epsilon):
-    if x <= 0:
-        return 0
-    elif x >= 1.0:
-        return data['nsec'].max()
-    else:
-        if 0 > (x*gamma+delta) / (1-x+epsilon):
-            return numpy.nan
-        return (alpha * numpy.log((x*gamma+delta) / (1-x+epsilon)) + beta)
+def inverse_sigmoid(x, alpha, beta, gamma):
+    #return numpy.e**((numpy.log(alpha / x - 1) + beta * gamma) / beta)
+    return numpy.e**gamma * (alpha / x - 1)**(1/beta)
 
-def inverse_sigmoids(xs, alpha, beta, gamma, delta, epsilon):
-    return numpy.array([inverse_sigmoid(x, alpha, beta, gamma, delta, epsilon) for x in xs])
+def inverse_sigmoids(xs, alpha, beta, gamma):
+    return numpy.array([inverse_sigmoid(x, alpha, beta, gamma) for x in xs])
 
 def single_sigmoid_approx(column):
     """
@@ -103,18 +95,9 @@ def single_sigmoid_approx(column):
     def normalized_sigmoid(x):
         return sigmoid(x, *res_curve) / (upper_bound - lower_bound)
 
-    inv_curve, _ = curve_fit(
-        inverse_sigmoids,
-        [normalized_sigmoid(x) for x in data['nsec']],
-        data['nsec'],
-        [0, 0, data['nsec'].min(), 1, 1],
-        bounds = (
-            [-numpy.inf,-numpy.inf,-numpy.inf,-numpy.inf,-numpy.inf],
-            [numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf],
-        )
-    )
     # plot the function compared to the real data
     fig, axs = plt.subplots(1,4, figsize=(16,5))
+
     axs[0].scatter(data['nsec'], data[column], label="Reference")
     axs[0].plot(data['nsec'], sigmoids(data['nsec'], *res_curve), label="CF")
     axs[0].set_xlabel("Time [nsec]")
@@ -126,9 +109,10 @@ def single_sigmoid_approx(column):
     axs[1].set_xlabel("Time [nsec]")
     axs[1].set_ylabel("Error [%]")
 
-    percentages =[normalized_sigmoid(x) for x in data['nsec']] 
+    percentages = (data[column] - data[column].min()) / (data[column].max() - data[column].min())
+    gap = data[column].max() - data[column].min()
 
-    axs[2].plot(percentages, [inverse_sigmoid(x, *inv_curve) for x in percentages])
+    axs[2].plot(percentages, [inverse_sigmoid(x * gap, *res_curve) for x in percentages])
     axs[2].scatter(
         percentages,
         data['nsec'],
@@ -139,9 +123,8 @@ def single_sigmoid_approx(column):
 
     axs[3].plot(
         percentages,
-        ([inverse_sigmoid(x, *inv_curve) for x in percentages] - data['nsec'])/data['nsec']*100,
+        ([inverse_sigmoid(x * gap, *res_curve) for x in percentages] - data['nsec'])/data['nsec']*100,
     )
-    axs[3].set_ylim((-2.5, 2.5))
     axs[3].set_title("Error of INCD")
     axs[3].set_xlabel("Percentiles")
     axs[3].set_ylabel("Error [%]")
@@ -152,9 +135,9 @@ def single_sigmoid_approx(column):
     fig.savefig(f"output_{column}.svg")
 
     with open(f"output_{column}.csv", 'w', encoding="utf-8") as file:
-        file.write("blocksize,rwratio,a,b,c,d,e\n")
-        file.write("131072,1.0")
-        for x in inv_curve:
+        file.write("blocksize,rwratio,gap,a,b,c\n")
+        file.write(f"131072,1.0,{gap}")
+        for x in res_curve:
             file.write(f",{x}")
         file.write("\n")
 
@@ -163,32 +146,6 @@ def single_sigmoid_approx(column):
     print(f"\t alpha: {res_curve[0]}")
     print(f"\t beta: {res_curve[1]}")
     print(f"\t gamma: {res_curve[2]}")
-
-    print("h(x):")
-    print(f"\t alpha: {inv_curve[0]}")
-    print(f"\t beta: {inv_curve[1]}")
-    print(f"\t gamma: {inv_curve[2]}")
-    print(f"\t delta: {inv_curve[3]}")
-    print(f"\t epsilon: {inv_curve[4]}")
-    print()
-
-#double_res_curve, _ = curve_fit(
-#    double_sigmoids,
-#    data['nsec'].to_numpy(),
-#    data['read_clat_ns_cumulative'].to_numpy(),
-#    [*res_curve, 0, 0, math.log(data['nsec'].min())],
-#    bounds = (
-#        lower_bound() + lower_bound(),
-#        upper_bound() + upper_bound(),
-#    ),
-#)
-
-# bounded_res = approx_res / (upper_bound - lower_bound)
-
-# with pynverse
-# import pynverse
-#
-#inverse_normalized_sigmoid = pynverse.inversefunc(normalized_sigmoid, domain=[data['nsec'].min(), data['nsec'].max()])
 
 single_sigmoid_approx("read_clat_ns_cumulative")
 single_sigmoid_approx("write_clat_ns_cumulative")
