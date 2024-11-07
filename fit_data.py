@@ -147,7 +147,7 @@ def single_sigmoid_approx(column):
     print(f"\t gamma: {res_curve[2]}")
 
 
-with open(f"param_{input}.csv", 'w', encoding="utf-8") as file:
+with open(f"param_{input}", 'w', encoding="utf-8") as file:
         file.write("blocksize,op,rw,gap,a,b,c\n")
 
 single_sigmoid_approx("read_clat_ns_cumulative")
