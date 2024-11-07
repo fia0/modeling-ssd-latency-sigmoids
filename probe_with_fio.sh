@@ -14,6 +14,8 @@ NAME=probe
 OUT="${NAME}_${BLOCK_SIZE}_${RW_RATIO}_${IO_DEPTH}"
 OUT_JSON="${OUT}.json"
 
+DIRECTORY=/vol1
+
 setup_fio() {
     wget ${FIO_URL}
     sha256sum -c checksum.txt
@@ -35,8 +37,10 @@ fi
     --iodepth=${IO_DEPTH} \
     --blocksize=${BLOCK_SIZE} \
     --size=10g \
+    --runtime=60 \
+    --time_based \
     --direct=1 \
-    --directory=/vol1 \
+    --directory="$DIRECTORY" \
     --group_reporting=1 \
     --output="$OUT_JSON" \
     --output-format='json+'
