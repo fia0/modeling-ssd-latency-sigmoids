@@ -31,8 +31,8 @@ fi
 "${FIO_DIR}/fio" \
     --name=probe \
     --readwrite=randrw \
-    --rwmixread="$(echo \"100 * $RW_RATIO\" | bc)" \
-    --rwmixwrite="$(echo \"100 * \(1.0 - $RW_RATIO\)\" | bc)" \
+    --rwmixread="$(echo "100 * $RW_RATIO" | bc)" \
+    --rwmixwrite="$(echo "100 * (1.0 - $RW_RATIO)" | bc)" \
     --ioengine=io_uring \
     --iodepth=${IO_DEPTH} \
     --blocksize=${BLOCK_SIZE} \
