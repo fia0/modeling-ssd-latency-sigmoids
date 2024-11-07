@@ -134,7 +134,8 @@ def single_sigmoid_approx(column):
     fig.savefig(f"output_{column}.svg")
 
     with open(f"param_{input}.csv", 'a', encoding="utf-8") as file:
-        file.write(f"{block_size},{column.split("_")[0]},{rw_ratio},{gap}")
+        op = column.split("_")[0]
+        file.write(f"{block_size},{op},{rw_ratio},{gap}")
         for x in res_curve:
             file.write(f",{x}")
         file.write("\n")
