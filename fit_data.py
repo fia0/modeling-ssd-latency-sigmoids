@@ -148,7 +148,7 @@ def single_sigmoid_approx(column):
 
 
 with open(f"param_{input}", 'w', encoding="utf-8") as file:
-        file.write("blocksize,op,rw,queue_depth,gap,a,b,c\n")
+        file.write("blocksize,op,rw,gap,queue_depth,a,b,c\n")
 
 single_sigmoid_approx("read_clat_ns_cumulative")
 single_sigmoid_approx("write_clat_ns_cumulative")
