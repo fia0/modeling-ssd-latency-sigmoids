@@ -30,7 +30,7 @@ The result of this function is the time of the given percentile in nanoseconds.
 
 The results is given as another csv file with the following format:
 
-    blocksize, rwratio, a, b, c, d, e
+    blocksize, operation, rwratio, queue_depth, a, b, c
 
 
 """
@@ -133,9 +133,9 @@ def single_sigmoid_approx(column):
     fig.tight_layout()
     fig.savefig(f"output_{column}.svg")
 
-    with open(f"param_{input}.csv", 'a', encoding="utf-8") as file:
+    with open(f"param_{input}", 'a', encoding="utf-8") as file:
         op = column.split("_")[0]
-        file.write(f"{block_size},{op},{rw_ratio},{gap}")
+        file.write(f"{block_size},{op},{rw_ratio},{gap},{queue_depth}")
         for x in res_curve:
             file.write(f",{x}")
         file.write("\n")
@@ -148,7 +148,7 @@ def single_sigmoid_approx(column):
 
 
 with open(f"param_{input}", 'w', encoding="utf-8") as file:
-        file.write("blocksize,op,rw,gap,a,b,c\n")
+        file.write("blocksize,op,rw,queue_depth,gap,a,b,c\n")
 
 single_sigmoid_approx("read_clat_ns_cumulative")
 single_sigmoid_approx("write_clat_ns_cumulative")
