@@ -13,6 +13,9 @@ SIZE=800
 SEED=54321
 BLOCK_SIZE=$((4 * 1024 * 1024))
 
+DIRECTORY=/vol1
+OUT_JSON=res.json
+
 "${FIO_DIR}/fio" \
     --name=verify \
     --readwrite=randrw \
@@ -24,7 +27,8 @@ BLOCK_SIZE=$((4 * 1024 * 1024))
     --blocksize=${BLOCK_SIZE} \
     --size=$((SIZE * BLOCK_SIZE)) \
     --io_size=$((REQS_PER_BATCH * ITERATION * BLOCK_SIZE)) \
-    --thinktime= $INTERVAL \
+    --thinktime=$INTERVAL \
+    --thinktime_blocks=$REQS_PER_BATCH \
     --direct=1 \
     --directory="$DIRECTORY" \
     --group_reporting=1 \
